@@ -4,53 +4,113 @@ import webbrowser
 import json
 import tkinter as tk
 from tkinter import filedialog
+from urllib.parse import quote
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
 CONFIG_FILE = "config.json"
 
-# Funktion, um den gespeicherten Pfad zu laden
-def lade_watch_path():
+# -------------------------------
+# CONFIG LADEN & SPEICHERN
+# -------------------------------
+def lade_config():
     if os.path.exists(CONFIG_FILE):
-        with open(CONFIG_FILE, "r") as f:
-            data = json.load(f)
-            return data.get("watch_path", "")
-    return ""
+        try:
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except:
+            return {}
+    return {}
 
-# Funktion, um den Pfad zu speichern
-def speichere_watch_path(path):
-    # Prüfen, ob die Datei existiert
-    if not os.path.exists(CONFIG_FILE):
-        print(f"{CONFIG_FILE} existiert nicht. Wird jetzt erstellt.")
-    with open(CONFIG_FILE, "w") as f:
-        json.dump({"watch_path": path}, f)
-    print(f"Pfad gespeichert: {path}")
+def speichere_config(data):
+    with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=4)
 
 
-# Pfad laden
-WATCH_PATH = lade_watch_path()
+# -------------------------------
+# CONFIG INITIALISIEREN
+# -------------------------------
+config = lade_config()
 
-# Falls kein Pfad gesetzt ist, Dialog öffnen
+WATCH_PATH = config.get("watch_path", "")
+EMPFAENGER = config.get("empfaenger", "")
+BETREFF = config.get("betreff", "")
+BODY = config.get("body", "")
+ZUSATZLICHE_INFO = config.get("zusatzliche_info", "")
+
+# Falls Ordner fehlt → Benutzer auswählen lassen
 if WATCH_PATH == "" or not os.path.exists(WATCH_PATH):
     root = tk.Tk()
-    root.withdraw()  # Versteckt das Hauptfenster
+    root.withdraw()
     ordner = filedialog.askdirectory(title="Bitte Zielordner auswählen")
-    if ordner:
-        WATCH_PATH = ordner
-        speichere_watch_path(WATCH_PATH)
-    else:
+
+    if not ordner:
         print("Kein Ordner ausgewählt. Programm beendet.")
         exit(1)
 
+    WATCH_PATH = ordner
+    config["watch_path"] = WATCH_PATH
+    speichere_config(config)
+
 print(f"Überwachter Ordner: {WATCH_PATH}")
 
+
+# -------------------------------
+# OUTLOOK URL GENERIEREN
+# -------------------------------
+def baue_outlook_url():
+    base = "https://outlook.office.com/mail/deeplink/compose?"
+
+    params = []
+
+    if EMPFAENGER.strip() != "":
+        params.append("to=" + quote(EMPFAENGER))
+    if BETREFF.strip() != "":
+        params.append("subject=" + quote(BETREFF))
+    if BODY.strip() != "":
+        params.append("body=" + quote(BODY))
+
+    if len(params) == 0:
+        return "https://outlook.office.com/mail/?path=/mail/action/compose"
+
+
+    return base + "&".join(params)
+
+
+# -------------------------------
+# DATEI-WATCHER
+# -------------------------------
 class NewFileHandler(FileSystemEventHandler):
     def on_created(self, event):
-        if not event.is_directory:
-            print(f"Neue Datei entdeckt: {event.src_path}")
-            # Outlook-Compose öffnen
-            webbrowser.open("https://outlook.office.com/mail/deeplink/compose")
+        if event.is_directory:
+            return
 
+        filepath = event.src_path
+        print(f"Neue Datei entdeckt: {filepath}")
+
+        # warten bis Datei vollständig gespeichert ist
+        last_size = -1
+        while True:
+            try:
+                new_size = os.path.getsize(filepath)
+            except:
+                new_size = -1
+
+            if new_size == last_size:
+                break
+
+            last_size = new_size
+            time.sleep(0.3)
+
+        # Outlook öffnen
+        url = baue_outlook_url()
+        print("Öffne Outlook mit:", url)
+        webbrowser.open(url)
+
+
+# -------------------------------
+# START
+# -------------------------------
 if __name__ == "__main__":
     event_handler = NewFileHandler()
     observer = Observer()
