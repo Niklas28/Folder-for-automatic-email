@@ -19,12 +19,13 @@ pip install -r requirements.txt
 Mit PyInstaller kannst du aus der Python-Datei eine ausführbare EXE erstellen:
 
 pyinstaller --noconsole --onefile mailwatcher.py
+pyinstaller --noconsole --onefile settings.py
 
-Die fertige .exe findest du danach im Ordner dist/.
+Die fertigen .exe findest du danach im Ordner dist/.
 
 # 2. EXE automatisch beim Windows-Start ausführen
 
-Erstelle eine Verknüpfung der EXE-Datei.
+Erstelle eine Verknüpfung der EXE-Datei (mailwatcher.exe).
 
 Kopiere die Verknüpfung in den Autostart-Ordner:
 
@@ -37,3 +38,7 @@ Jetzt startet der Prozess automatisch, wenn der Computer hochfährt, und läuft 
 Beim ersten Start des Programms fragt es nach dem Ordner, der überwacht werden soll.
 
 Danach wird die Wahl gespeichert, sodass du nicht jedes Mal einen Ordner auswählen musst.
+
+# 4. Settings (Optional)
+
+Wird settings.exe ausgeführt, so kann der Zielordner für die Beobachtung, Zielkontakt, Betreff und Text voreingestellt werden für die Email.
